@@ -1,8 +1,8 @@
 package io.github.pronink.hilos;
 
-import io.github.pronink.*;
+import io.github.pronink.Informacion;
 import io.github.pronink.entidades.MensajeArmorStand;
-import org.bukkit.*;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -17,7 +17,6 @@ public class HiloMinecraft implements Runnable {
 
     private int state = 0;
 
-    private Collection<Player> listaJugadoresOnline = new ArrayList<>();//(Collection<Player>)Bukkit.getOnlinePlayers();
     private Collection<ArmorStand> listaArmorStands = new ArrayList<>();
 
     public HiloMinecraft(DatosCompartidos datosCompartidos) {
@@ -32,27 +31,13 @@ public class HiloMinecraft implements Runnable {
         // Obtengo de la variable compartida los Mensajes que debo spawnear y los spawneo si puedo.
         if (state % 100 == 0) // Cada 5 segundos (100 ticks)
         {
-            // Obtiene la lista de mensajes que la base de datos ha dejado en su variable compartida
-            ArrayList<MensajeArmorStand> listaMensajesArmorStands = datosCompartidos.getListaMensajesArmorStand();
-            if (listaMensajesArmorStands.size() > 0) {
-                for (MensajeArmorStand mensajeArmorStand : listaMensajesArmorStands){
-                    boolean spawneadoCorrecto = MensajeArmorStand.spawnearMensajeArmorStand(mensajeArmorStand);
-                    if (spawneadoCorrecto){ // Si se ha podido spawnear, debo avisar a la base de datos de que ha sido spawneado
-                        datosCompartidos.agregarMensajeLeido(mensajeArmorStand.getId());
-                    }
-                }
-            }
-        }
-        // Mantengo fija la referencia de todos los jugadores y la refresco cada 5 segundos
-        if (state % 100 == 0) // Cada 5 segundos (100 ticks)
-        {
-            listaJugadoresOnline = (Collection<Player>) Bukkit.getOnlinePlayers();
+            sincronizarArmorStands();
         }
         // Mantengo fija la referencia de todos los Armorstands con mensajes cercanos a los jugadores y la refresco cada 1 segundo
         if (state % 20 == 0) // Cada 1 segundo (20 ticks)
         {
             listaArmorStands.clear();
-            for (Player jugador : listaJugadoresOnline) {
+            for (Player jugador : Bukkit.getOnlinePlayers()) {
                 for (Entity entidad : jugador.getNearbyEntities(30, 30, 30)) {
                     if (entidad instanceof ArmorStand) {
                         listaArmorStands.add((ArmorStand) entidad);
@@ -65,12 +50,25 @@ public class HiloMinecraft implements Runnable {
         // Cada medio segundo refresco el Scoreboard (texto en la derecha de la pantalla) con las coordenadas y el manual
         if (state % 10 == 0) // Cada 0.5 segundos (10 ticks)
         {
-            Informacion.pintarInformacion(listaJugadoresOnline);
+            Informacion.pintarInformacion((Collection<Player>)Bukkit.getOnlinePlayers());
         }
         // Rota despacio y crea partículas alrededor de los Armorstands con mensajes
         if (state % 2 == 0)  // Cada 0.1 segundos (2 ticks)
         {
             MensajeArmorStand.animarMensajes(listaArmorStands);
+        }
+    }
+
+    public void sincronizarArmorStands(){
+        // Obtiene la lista de mensajes que la base de datos ha dejado en su variable compartida
+        ArrayList<MensajeArmorStand> listaMensajesArmorStands = datosCompartidos.getListaMensajesArmorStand();
+        if (listaMensajesArmorStands.size() > 0) {
+            for (MensajeArmorStand mensajeArmorStand : listaMensajesArmorStands){
+                boolean spawneadoCorrecto = MensajeArmorStand.spawnearMensajeArmorStand(mensajeArmorStand);
+                if (!spawneadoCorrecto){ // Si se ha podido spawnear, debo avisar a la base de datos de que no ha sido spawneado
+                    System.out.println("Un MensajeArmorStand no ha spawneado !!! id: " + mensajeArmorStand.getId());
+                }
+            }
         }
     }
 
